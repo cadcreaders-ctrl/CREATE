@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CREATE · CAD paramétrico para Mac</title>
+<meta name="description" content="CREATE es un CAD paramétrico para Mac, gratis y sin suscripción: bocetos, sólidos, ensambles, planos ISO, desmontaje sin choques y preparación para impresión 3D. Sin cuenta y sin internet.">
+<meta property="og:title" content="CREATE · Diseña. Ensambla. Imprime.">
+<meta property="og:description" content="CAD paramétrico para Mac, gratis, sin cuenta y sin nube.">
+<meta property="og:image" content="render/avion.png">
+<meta name="theme-color" content="#07080b">
+<link rel="icon" href="logo-create.svg" type="image/svg+xml">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<style>
+  :root {
+    --acento: #ff6a2b; --acento-2: #ffb36b; --azul: #5aa9ff; --violeta: #a78bfa;
+    --fondo: #07080b; --fondo-2: #0d0f14; --tinta: #f5f5f7; --tinta-2: #a1a1aa; --tinta-3: #6b6b76;
+    --vidrio: rgba(255,255,255,.06); --vidrio-2: rgba(255,255,255,.1); --borde: rgba(255,255,255,.12);
+    --radio: 28px; --ancho: 1280px; --ease: cubic-bezier(.2,.8,.2,1);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; background: var(--fondo); }
+  body { margin: 0; background: var(--fondo); color: var(--tinta); font: 17px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  a { color: var(--acento-2); }
+  img, video { max-width: 100%; display: block; }
+  button { font: inherit; }
+  .ancho { max-width: var(--ancho); margin: 0 auto; padding: 0 24px; }
+  h1, h2, h3 { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", Inter, sans-serif; letter-spacing: -.035em; margin: 0; }
+  h2.grande { font-size: clamp(40px, 5vw, 68px); line-height: 1.02; }
+  .grad { background: linear-gradient(100deg, #fff 10%, var(--acento-2) 45%, var(--acento) 75%, #ff3d6e 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .grad-azul { background: linear-gradient(100deg, #fff 0%, var(--azul) 55%, var(--violeta) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .etiqueta { font-size: 13px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--acento-2); margin-bottom: 14px; }
+  .sub { color: var(--tinta-2); font-size: clamp(18px, 2vw, 21px); max-width: 62ch; margin: 18px 0 0; }
+  section { scroll-margin-top: 70px; position: relative; padding: clamp(80px, 9vw, 128px) 0; }
+  .bandas { background: linear-gradient(180deg, transparent, var(--fondo-2) 15%, var(--fondo-2) 85%, transparent); }
+  .vidrio { background: linear-gradient(160deg, rgba(255,255,255,.10), rgba(255,255,255,.035) 60%); border: 1px solid var(--borde); border-radius: var(--radio); -webkit-backdrop-filter: blur(24px) saturate(1.6); backdrop-filter: blur(24px) saturate(1.6); box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 30px 80px -30px rgba(0,0,0,.8); }
+  .brillo { position: relative; overflow: hidden; }
+  .brillo::after { content: ""; position: absolute; inset: -40% -60%; background: linear-gradient(115deg, transparent 40%, rgba(255,255,255,.13) 50%, transparent 60%); transform: translateX(-60%); transition: transform 1.2s var(--ease); pointer-events: none; }
+  .brillo:hover::after { transform: translateX(60%); }
+  .rev { opacity: 0; transform: translateY(40px) scale(.98); transition: opacity 1s var(--ease), transform 1s var(--ease); transition-delay: var(--d, 0s); }
+  .rev.in { opacity: 1; transform: none; }
+
+  /* Barra */
+  header.barra { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 50; width: min(1180px, calc(100% - 24px)); border-radius: 999px; padding: 0 8px 0 22px; height: 56px; display: flex; align-items: center; gap: 18px; background: rgba(18,20,26,.55); border: 1px solid var(--borde); -webkit-backdrop-filter: blur(22px) saturate(1.8); backdrop-filter: blur(22px) saturate(1.8); box-shadow: 0 10px 40px -10px rgba(0,0,0,.6); }
+  .marca { font: 900 22px/1 "Arial Black", "Helvetica Neue", Arial, sans-serif; letter-spacing: .5px; color: var(--acento); text-decoration: none; }
+  header.barra nav { display: flex; gap: 18px; margin-left: auto; align-items: center; }
+  header.barra nav a { color: var(--tinta-2); text-decoration: none; font-size: 14px; transition: color .2s; white-space: nowrap; }
+  header.barra nav a:hover, header.barra nav a.activo { color: #fff; }
+  @media (max-width: 980px) { header.barra nav a:not(.boton) { display: none; } }
+  .progreso { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, var(--acento), var(--acento-2)); z-index: 60; width: 0; }
+  .boton { display: inline-flex; align-items: center; gap: 10px; background: linear-gradient(180deg, color-mix(in srgb, var(--acento) 80%, #fff), var(--acento)); color: #fff !important; text-decoration: none; font-weight: 650; border-radius: 999px; padding: 10px 20px; font-size: 15px; border: 0; cursor: pointer; box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 10px 30px -8px color-mix(in srgb, var(--acento) 70%, transparent); transition: transform .2s var(--ease), box-shadow .2s; }
+  .boton:hover { transform: translateY(-2px) scale(1.02); }
+  .boton.grande { padding: 17px 32px; font-size: 18px; }
+  .boton.v { background: var(--vidrio-2); border: 1px solid var(--borde); box-shadow: none; -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+  .boton svg { width: 20px; height: 20px; }
+
+  /* Portada */
+  .portada { min-height: 100vh; padding: 140px 0 60px; display: grid; place-items: center; text-align: center; overflow: hidden; }
+  .aurora { position: absolute; inset: -20% -10% auto; height: 120vh; pointer-events: none; filter: blur(80px); opacity: .9; }
+  .aurora i { position: absolute; border-radius: 50%; mix-blend-mode: screen; animation: flota 18s ease-in-out infinite alternate; }
+  .aurora i:nth-child(1) { width: 55vw; height: 55vw; left: 5%; top: 5%; background: radial-gradient(circle, color-mix(in srgb, var(--acento) 55%, transparent), transparent 65%); }
+  .aurora i:nth-child(2) { width: 50vw; height: 50vw; right: 0; top: 0; background: radial-gradient(circle, rgba(90,169,255,.45), transparent 65%); animation-delay: -6s; }
+  .aurora i:nth-child(3) { width: 45vw; height: 45vw; left: 30%; top: 30%; background: radial-gradient(circle, rgba(167,139,250,.35), transparent 65%); animation-delay: -12s; }
+  @keyframes flota { from { transform: translate3d(-4%,-3%,0) scale(1); } to { transform: translate3d(5%,4%,0) scale(1.12); } }
+  .portada h1 { font-size: clamp(52px, 9.5vw, 132px); line-height: .98; font-weight: 800; }
+  .portada .entrada { color: var(--tinta-2); font-size: clamp(19px, 2.2vw, 24px); max-width: 46ch; margin: 26px auto 34px; }
+  .acciones { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+  .datos { margin-top: 16px; font-size: 14px; color: var(--tinta-3); }
+  .escena { position: relative; margin: 56px auto 0; width: min(1240px, 100%); aspect-ratio: 16 / 9; perspective: 1400px; }
+  .escena .marco { position: absolute; inset: 4% 6% 0; border-radius: 30px; overflow: hidden; transform: rotateX(var(--rx, 14deg)) scale(var(--sc, .92)); transform-origin: 50% 100%; }
+  .escena video { width: 100%; height: 100%; object-fit: cover; }
+
+  /* Cifras y bento */
+  .cifras { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-top: 56px; }
+  @media (max-width: 860px) { .cifras { grid-template-columns: repeat(2, 1fr); } }
+  .cifra { padding: 28px 26px; }
+  .cifra b { display: block; font-size: clamp(38px, 5vw, 60px); font-weight: 800; letter-spacing: -.04em; line-height: 1; }
+  .cifra > span { color: var(--tinta-2); font-size: 15px; display: block; margin-top: 10px; }
+  .bento { display: grid; grid-template-columns: repeat(6, 1fr); grid-auto-rows: 290px; gap: 18px; margin-top: 56px; }
+  .bento > div { padding: 30px; position: relative; overflow: hidden; }
+  .bento h3 { font-size: 26px; line-height: 1.12; }
+  .bento p { color: var(--tinta-2); margin: 10px 0 0; font-size: 15.5px; max-width: 34ch; }
+  .bento img.render { position: absolute; right: 4%; bottom: 6%; width: 52%; max-height: 58%; object-fit: contain; filter: drop-shadow(0 30px 40px rgba(0,0,0,.6)); transition: transform 1.2s var(--ease); }
+  .bento > div:hover img.render { transform: translateY(-10px) scale(1.04) rotate(-1deg); }
+  .b-a { grid-column: span 3; grid-row: span 2; } .b-b { grid-column: span 3; grid-row: span 2; } .b-c, .b-d, .b-e { grid-column: span 2; }
+  .b-a img.render, .b-b img.render { width: 80%; max-height: 64%; object-fit: contain; left: 10%; right: auto; bottom: 5%; }
+  @media (max-width: 860px) { .bento { grid-template-columns: 1fr; grid-auto-rows: 360px; } .bento > div { grid-column: auto !important; grid-row: auto !important; } }
+
+  /* Visor 3D */
+  .visor3d { display: grid; grid-template-columns: 1fr 320px; gap: 18px; margin-top: 48px; }
+  @media (max-width: 900px) { .visor3d { grid-template-columns: 1fr; } }
+  .lienzo { position: relative; height: clamp(460px, 72vh, 760px); padding: 0; overflow: hidden; cursor: grab; }
+  .lienzo:active { cursor: grabbing; }
+  .lienzo canvas { width: 100% !important; height: 100% !important; display: block; border-radius: var(--radio); }
+  .lienzo .cargando { position: absolute; inset: 0; display: grid; place-items: center; color: var(--tinta-2); font-size: 15px; }
+  .lienzo .pista { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); font-size: 13px; color: var(--tinta-2); background: rgba(0,0,0,.35); padding: 6px 14px; border-radius: 999px; pointer-events: none; }
+  .lienzo .nombre { position: absolute; left: 20px; top: 18px; font-size: 15px; font-weight: 650; background: rgba(0,0,0,.45); padding: 7px 14px; border-radius: 12px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .mandos { padding: 26px; display: flex; flex-direction: column; gap: 20px; }
+  .mandos label { font-size: 14px; color: var(--tinta-2); display: block; margin-bottom: 10px; }
+  .mandos b.val { color: #fff; float: right; }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--acento) var(--p, 0%), rgba(255,255,255,.15) var(--p, 0%)); outline: none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.5); cursor: pointer; }
+  .fila-btn { display: flex; gap: 8px; flex-wrap: wrap; }
+  .fila-btn button, .pildora { padding: 9px 15px; border-radius: 999px; border: 1px solid var(--borde); background: var(--vidrio); color: var(--tinta-2); cursor: pointer; font-size: 14px; transition: all .25s; }
+  .fila-btn button:hover, .pildora:hover { color: #fff; background: var(--vidrio-2); }
+  .fila-btn button.on, .pildora.on { background: #fff; color: #000; border-color: #fff; }
+  .mandos .nota { font-size: 13px; color: var(--tinta-3); }
+
+  /* Entornos */
+  .entornos { margin-top: 44px; }
+  .ent-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+  .ent-panel { display: grid; grid-template-columns: 1.85fr 1fr; gap: 26px; margin-top: 22px; padding: 16px; align-items: stretch; }
+  @media (max-width: 900px) { .ent-panel { grid-template-columns: 1fr; } }
+  .ent-panel video { width: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: #0b0c10; display: block; }
+  .ent-panel .texto { padding: 14px 10px; display: flex; flex-direction: column; }
+  .ent-panel h3 { font-size: 30px; }
+  .ent-panel p { color: var(--tinta-2); margin: 12px 0 18px; }
+  .herr { display: flex; flex-wrap: wrap; gap: 8px; }
+  .herr span { font-size: 13.5px; padding: 6px 12px; border-radius: 10px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.08); }
+  .ent-panel .resuelve { margin-top: auto; padding-top: 18px; font-size: 14.5px; color: var(--tinta-2); border-top: 1px solid var(--borde); }
+
+  /* Recorrido fijo */
+  .recorrido { display: grid; grid-template-columns: minmax(280px, .75fr) 1.6fr; gap: 56px; margin-top: 40px; }
+  .recorrido .pasos > div { min-height: 64vh; display: flex; flex-direction: column; justify-content: center; opacity: .25; transition: opacity .6s; }
+  .recorrido .pasos > div.activo { opacity: 1; }
+  .recorrido .num { font: 700 14px/1 ui-monospace, Menlo, monospace; color: var(--acento-2); margin-bottom: 14px; }
+  .recorrido .pasos h3 { font-size: clamp(30px, 3.6vw, 46px); line-height: 1.05; }
+  .recorrido .pasos p { color: var(--tinta-2); font-size: 18px; margin: 16px 0 0; max-width: 40ch; }
+  .recorrido .pantalla { position: sticky; top: max(96px, calc(50vh - 22vw)); height: auto; aspect-ratio: 16 / 9.9; padding: 0; overflow: hidden; }
+  .recorrido .capa { position: absolute; inset: 34px 0 0; border-radius: 0 0 var(--radio) var(--radio); overflow: hidden; opacity: 0; transform: scale(.96); transition: opacity .8s var(--ease), transform .8s var(--ease); background: #000; }
+  .recorrido .capa.activo { opacity: 1; transform: none; }
+  .recorrido .capa video { width: 100%; height: 100%; object-fit: contain; background: #0b0c10; }
+  @media (max-width: 860px) { .recorrido { grid-template-columns: 1fr; } .recorrido .pantalla { position: relative; top: 0; order: -1; } .recorrido .pasos > div { min-height: auto; opacity: 1; padding: 24px 0; } }
+
+  /* Ahorro */
+  .ahorro { display: grid; grid-template-columns: 340px 1fr; gap: 18px; margin-top: 44px; }
+  @media (max-width: 900px) { .ahorro { grid-template-columns: 1fr; } }
+  .ahorro .mandos { gap: 26px; }
+  .barras { padding: 28px; display: flex; flex-direction: column; gap: 16px; justify-content: center; }
+  .barra-p { display: grid; grid-template-columns: 150px 1fr 120px; gap: 14px; align-items: center; font-size: 15px; }
+  .barra-p .pista-b { height: 14px; border-radius: 7px; background: rgba(255,255,255,.06); overflow: hidden; }
+  .barra-p .pista-b i { display: block; height: 100%; border-radius: 7px; background: linear-gradient(90deg, #fb7185, #f43f5e); width: 0; transition: width .8s var(--ease); }
+  .barra-p.nos .pista-b i { background: linear-gradient(90deg, #4ade80, #22c55e); }
+  .barra-p b { text-align: right; font-variant-numeric: tabular-nums; }
+  .total-ahorro { text-align: center; margin-top: 6px; font-size: 18px; color: var(--tinta-2); }
+  .total-ahorro b { display: block; font-size: clamp(40px, 6vw, 64px); color: #fff; letter-spacing: -.03em; }
+
+  /* Personalización */
+  .perso { display: grid; grid-template-columns: 1.9fr 1fr; gap: 28px; margin-top: 50px; }
+  @media (max-width: 860px) { .perso { grid-template-columns: 1fr; } }
+  .perso .visor { padding: 0; aspect-ratio: 16 / 10.55; position: relative; overflow: hidden; }
+  .perso .visor img { position: absolute; inset: 34px 0 0; width: 100%; height: calc(100% - 34px); object-fit: contain; object-position: top; opacity: 0; transition: opacity .6s var(--ease); }
+  .perso .visor img.activo { opacity: 1; }
+  .estilos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-content: start; }
+  .estilo { min-height: 0; }
+  .estilo { text-align: left; padding: 15px 18px; border-radius: 18px; background: var(--vidrio); border: 1px solid var(--borde); color: var(--tinta); cursor: pointer; transition: background .3s, transform .3s var(--ease), border-color .3s; }
+  .estilo:hover { transform: translateY(-2px); background: var(--vidrio-2); }
+  .estilo.activo { border-color: var(--acento); background: color-mix(in srgb, var(--acento) 14%, transparent); }
+  .estilo b { display: block; font-size: 15.5px; } .estilo span { color: var(--tinta-2); font-size: 13px; }
+  .acentos { display: flex; gap: 10px; align-items: center; margin-top: 24px; flex-wrap: wrap; color: var(--tinta-2); font-size: 15px; }
+  .acentos button { width: 34px; height: 34px; border-radius: 50%; border: 2px solid rgba(255,255,255,.25); cursor: pointer; transition: transform .2s; }
+  .acentos button:hover { transform: scale(1.15); } .acentos button.on { border-color: #fff; box-shadow: 0 0 0 4px rgba(255,255,255,.15); }
+  .modos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 28px; }
+  @media (max-width: 860px) { .modos { grid-template-columns: 1fr; } }
+  .modo { padding: 14px; } .modo video { border-radius: 14px; aspect-ratio: 16 / 9; width: 100%; object-fit: contain; background: #0b0c10; }
+  .modo h3 { font-size: 20px; margin: 16px 6px 4px; } .modo p { color: var(--tinta-2); font-size: 15px; margin: 0 6px 8px; }
+
+  /* Tutoriales */
+  .tuts { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; margin-top: 22px; }
+  .tut { padding: 10px; transition: transform .35s var(--ease); } .tut:hover { transform: translateY(-4px); }
+  .tut img { width: 100%; aspect-ratio: 1120 / 760; object-fit: cover; border-radius: 16px; background: rgba(255,255,255,.04); }
+  .tut .nv { display: inline-block; font-size: 11.5px; font-weight: 700; color: #fff; border-radius: 999px; padding: 2px 9px; margin: 10px 6px 4px; }
+  .nv.b { background: #16a34a; } .nv.i { background: #2563eb; } .nv.a { background: #9333ea; } .nv.e { background: #ea580c; }
+  .tut b { display: block; margin: 0 6px; font-size: 15.5px; } .tut small { display: block; margin: 2px 6px 6px; color: var(--tinta-2); font-size: 13px; }
+  .tut[hidden] { display: none; }
+
+  /* Vídeos */
+  .galeria { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 18px; margin-top: 22px; }
+  .vid { padding: 10px; cursor: pointer; transition: transform .4s var(--ease); } .vid:hover { transform: translateY(-4px); }
+  .vid .caja { position: relative; aspect-ratio: 16 / 9; border-radius: 16px; overflow: hidden; background: radial-gradient(circle at 30% 20%, #1b1f2a, #0a0b0f); }
+  .vid video, .vid img { width: 100%; height: 100%; object-fit: contain; background: #0b0c10; }
+  .vid .play { position: absolute; inset: 0; display: grid; place-items: center; transition: opacity .3s; }
+  .vid .play i { width: 58px; height: 58px; border-radius: 50%; background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.35); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); display: grid; place-items: center; }
+  .vid .play i::after { content: ""; border-left: 16px solid #fff; border-top: 10px solid transparent; border-bottom: 10px solid transparent; margin-left: 5px; }
+  .vid.reproduce .play { opacity: 0; }
+  .vid .pronto { position: absolute; inset: 0; display: grid; place-items: center; color: var(--tinta-3); font-size: 14px; }
+  .vid h4 { margin: 12px 6px 2px; font-size: 16px; } .vid p { margin: 0 6px 6px; color: var(--tinta-2); font-size: 13.5px; }
+  .vid[hidden] { display: none; }
+  .modal { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; background: rgba(0,0,0,.7); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); opacity: 0; pointer-events: none; transition: opacity .35s; }
+  .modal.abierto { opacity: 1; pointer-events: auto; }
+  .modal video { width: min(1600px, 92vw); max-height: 88vh; background: #000; border-radius: 18px; box-shadow: 0 40px 120px rgba(0,0,0,.8); }
+
+  /* Apóyanos */
+  .escalera { margin-top: 48px; padding: 34px; }
+  .escalera .riel { position: relative; height: 10px; border-radius: 5px; background: rgba(255,255,255,.08); margin: 30px 0 16px; }
+  .escalera .riel i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; background: linear-gradient(90deg, var(--acento), var(--acento-2)); width: 0; transition: width .6s var(--ease); }
+  .escalera .metas { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-top: 24px; }
+  @media (max-width: 900px) { .escalera .metas { grid-template-columns: 1fr; } }
+  .meta { padding: 18px; border-radius: 20px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); transition: all .5s var(--ease); }
+  .meta.lograda { background: color-mix(in srgb, var(--acento) 14%, transparent); border-color: color-mix(in srgb, var(--acento) 60%, transparent); transform: translateY(-4px); }
+  .meta small { font: 700 13px/1 ui-monospace, Menlo, monospace; color: var(--acento-2); } .meta h4 { margin: 8px 0 6px; font-size: 18px; } .meta p { margin: 0; font-size: 14px; color: var(--tinta-2); }
+  .simula { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; color: var(--tinta-2); font-size: 15px; }
+  .simula input { flex: 1 1 280px; } .simula b { color: #fff; font-size: 22px; min-width: 140px; text-align: right; font-variant-numeric: tabular-nums; }
+  .niveles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 26px; }
+  @media (max-width: 1000px) { .niveles { grid-template-columns: repeat(2, 1fr); } } @media (max-width: 600px) { .niveles { grid-template-columns: 1fr; } }
+  .nivel { padding: 26px; display: flex; flex-direction: column; }
+  .nivel.destacado { border-color: var(--acento); box-shadow: 0 0 0 1px var(--acento), 0 30px 80px -30px color-mix(in srgb, var(--acento) 60%, transparent); }
+  .nivel h3 { font-size: 22px; } .nivel .precio { font-size: 40px; font-weight: 800; letter-spacing: -.03em; margin: 8px 0 4px; } .nivel .precio small { font-size: 15px; color: var(--tinta-2); font-weight: 500; }
+  .nivel ul { list-style: none; padding: 0; margin: 14px 0 0; color: var(--tinta-2); font-size: 14.5px; } .nivel li { padding-left: 24px; position: relative; margin: 8px 0; }
+  .nivel li::before { content: "✓"; position: absolute; left: 0; color: #4ade80; font-weight: 800; }
+  .aviso { margin-top: 26px; padding: 20px 24px; color: var(--tinta-2); font-size: 15.5px; } .aviso strong { color: #fff; }
+  .hoja { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 40px; position: relative; }
+  @media (max-width: 900px) { .hoja { grid-template-columns: 1fr; } }
+  .hito { padding: 22px; } .hito small { color: var(--acento-2); font-weight: 700; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; } .hito h4 { margin: 8px 0 6px; font-size: 18px; } .hito p { margin: 0; color: var(--tinta-2); font-size: 14.5px; }
+  .hito.hecho small { color: #4ade80; }
+
+  /* Comparativa, descarga, preguntas */
+  .tabla-wrap { overflow-x: auto; margin-top: 44px; padding: 6px; }
+  table.comp { border-collapse: collapse; width: 100%; min-width: 880px; font-size: 14.5px; }
+  table.comp th, table.comp td { padding: 14px; border-bottom: 1px solid rgba(255,255,255,.08); text-align: center; }
+  table.comp th:first-child, table.comp td:first-child { text-align: left; font-weight: 600; }
+  table.comp thead th { color: var(--tinta-2); font-weight: 600; } table.comp .nos { background: color-mix(in srgb, var(--acento) 12%, transparent); } table.comp thead th.nos { color: var(--acento-2); font-size: 16px; }
+  table.comp small { display: block; color: var(--tinta-3); font-weight: 400; font-size: 12px; }
+  .si { color: #4ade80; font-weight: 700; } .no { color: #fb7185; font-weight: 700; } .parcial { color: #fbbf24; font-weight: 700; }
+  .notas { font-size: 13px; color: var(--tinta-3); margin-top: 18px; } .notas a { color: var(--tinta-2); }
+  .descarga { text-align: center; } .descarga .caja { max-width: 680px; margin: 0 auto; padding: 56px 36px; }
+  .descarga .logo { width: 96px; height: 96px; margin: 0 auto 22px; }
+  .descarga h2 { font-size: clamp(36px, 5vw, 56px); } .descarga p { color: var(--tinta-2); margin: 14px 0 30px; }
+  .descarga dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 18px; text-align: left; font-size: 14px; margin: 34px 0 0; padding-top: 24px; border-top: 1px solid var(--borde); color: var(--tinta-2); }
+  .descarga dt { font-weight: 600; color: #fff; } .descarga dd { margin: 0; overflow-wrap: anywhere; } code { font: 12.5px/1.5 ui-monospace, Menlo, monospace; }
+  .otros { margin-top: 16px; font-size: 14px; color: var(--tinta-2); }
+  .pasos3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 40px; counter-reset: p; } @media (max-width: 860px) { .pasos3 { grid-template-columns: 1fr; } }
+  .pasos3 > div { padding: 28px; counter-increment: p; } .pasos3 > div::before { content: counter(p); display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: var(--acento); font-weight: 800; margin-bottom: 16px; }
+  .pasos3 h3 { font-size: 20px; } .pasos3 p { color: var(--tinta-2); font-size: 15.5px; margin: 8px 0 0; }
+  details { border-bottom: 1px solid var(--borde); padding: 20px 0; max-width: 820px; }
+  details summary { cursor: pointer; font-weight: 600; font-size: 18px; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+  details summary::-webkit-details-marker { display: none; } details summary::after { content: "+"; color: var(--acento-2); font-size: 24px; line-height: 1; transition: transform .3s; } details[open] summary::after { transform: rotate(45deg); }
+  details p { color: var(--tinta-2); margin: 12px 0 0; }
+  footer { border-top: 1px solid var(--borde); padding: 40px 0 60px; font-size: 13.5px; color: var(--tinta-3); }
+  footer .ancho { display: flex; flex-wrap: wrap; gap: 14px 32px; align-items: baseline; } footer p { margin: 0; flex: 1 1 420px; } footer a { color: var(--tinta-2); }
+
+  /* Ventana de la app: barra con semáforos sobre cada grabación de pantalla */
+  .ventana { position: relative; overflow: hidden; }
+  .ventana::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 34px; z-index: 2; background: linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.04)); border-bottom: 1px solid rgba(255,255,255,.08); }
+  .ventana::after { content: ""; position: absolute; left: 16px; top: 12px; width: 10px; height: 10px; border-radius: 50%; z-index: 3; background: #ff5f57; box-shadow: 17px 0 #febc2e, 34px 0 #28c840; }
+  .ent-panel .ventana { border-radius: 18px; padding-top: 34px; background: #0b0c10; }
+  @media (min-width: 1500px) { :root { --ancho: 1400px; } }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } .rev { opacity: 1; transform: none; } }
+</style>
+</head>
+<body>
+<div class="progreso" id="progreso"></div>
+<header class="barra">
+  <a class="marca" href="#">CREATE</a>
+  <nav id="nav">
+    <a href="#visor">Visor 3D</a><a href="#entornos">Entornos</a><a href="#ahorro">Ahorro</a><a href="#personaliza">Personaliza</a><a href="#tutoriales">Tutoriales</a><a href="#videos">Vídeos</a><a href="#apoyanos">Apóyanos</a>
+    <a class="boton" href="#descargar">Descargar</a>
+  </nav>
+</header>
+
+<main>
+<!-- PORTADA -->
+<section class="portada">
+  <div class="aurora"><i></i><i></i><i></i></div>
+  <div class="ancho" style="position:relative">
+    <div class="etiqueta rev">CAD paramétrico para Mac · Gratis</div>
+    <h1 class="rev" style="--d:.1s">Diseña. Ensambla.<br><span class="grad">Imprime.</span></h1>
+    <p class="entrada rev" style="--d:.2s">Del boceto al avión completo, con planos ISO, desmontaje animado sin choques y las placas listas para tu impresora. Sin suscripción, sin cuenta y sin nube.</p>
+    <div class="acciones rev" style="--d:.3s">
+      <a class="boton grande" href="#descargar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 20h16"/></svg>Descargar para Mac</a>
+      <a class="boton grande v" href="#apoyanos">Apoya el proyecto</a>
+    </div>
+    <div class="datos rev" style="--d:.35s">Versión 1.0.0 · macOS 13 o posterior · Apple Silicon</div>
+    <div class="escena" id="escena"><div class="marco vidrio"><video src="render/giro_avion.mp4" autoplay muted loop playsinline preload="auto" poster="render/avion_fondo.jpg"></video></div></div>
+  </div>
+</section>
+
+<!-- CIFRAS Y BENTO -->
+<section id="potencia" style="padding-top:30px">
+  <div class="ancho">
+    <div class="etiqueta rev">Por qué CREATE</div>
+    <h2 class="grande rev">Lo que pagas en otros programas,<br><span class="grad-azul">aquí viene incluido.</span></h2>
+    <div class="cifras">
+      <div class="cifra vidrio brillo rev"><b><span data-cuenta="0">0</span> €</b><span>al año. Sin licencias por puesto ni pruebas que caducan.</span></div>
+      <div class="cifra vidrio brillo rev" style="--d:.08s"><b><span data-cuenta="100">0</span> %</b><span>local: el motor geométrico va dentro de la app.</span></div>
+      <div class="cifra vidrio brillo rev" style="--d:.16s"><b><span data-cuenta="19">0</span></b><span>tutoriales por niveles, del básico al ensamble.</span></div>
+      <div class="cifra vidrio brillo rev" style="--d:.24s"><b><span data-cuenta="8">0</span></b><span>estilos de interfaz, con el aspecto de macOS.</span></div>
+    </div>
+    <div class="bento">
+      <div class="vidrio brillo b-a rev"><div class="etiqueta">Ensambles reales</div><h3>Un avión RC completo.<br>Ni una interferencia.</h3><p>Motor brushless, batería, variador, receptor y servos, con su peso real calculado por material.</p><img class="render" src="render/avion.png" alt="Avión entrenador RC" loading="lazy"></div>
+      <div class="vidrio brillo b-b rev" style="--d:.08s"><div class="etiqueta">Desmontaje</div><h3>Se desarma solo. Sin atravesar nada.</h3><p>Primero los subsistemas, luego pieza a pieza; los ejes salen primero.</p><img class="render" src="render/heli_expl.png" alt="Helicóptero desmontado" loading="lazy"></div>
+      <div class="vidrio brillo b-c rev"><h3>Fundición con 26 operaciones.</h3><p>Vaciados, alojamientos reflejados, patrones.</p><img class="render" src="render/reductor.png" alt="Carcasa de reductor" loading="lazy"></div>
+      <div class="vidrio brillo b-d rev" style="--d:.08s"><h3>Taladros acotados desde los bordes.</h3><p>Escribe la distancia y el agujero va justo ahí.</p><img class="render" src="render/nema17.png" alt="Soporte NEMA 17" loading="lazy"></div>
+      <div class="vidrio brillo b-e rev" style="--d:.16s"><h3>Curvas exactas, no tramos.</h3><p>Arcos, elipses y solevaciones de verdad.</p><img class="render" src="render/horquilla.png" alt="Horquilla" loading="lazy"></div>
+    </div>
+  </div>
+</section>
+
+<!-- VISOR 3D -->
+<section id="visor" class="bandas">
+  <div class="ancho">
+    <div class="etiqueta rev">Pruébalo aquí</div>
+    <h2 class="grande rev">Gíralo. <span class="grad">Desármalo.</span></h2>
+    <p class="sub rev">Este es el helicóptero RC 450 tal como sale de CREATE: 25 piezas, ensambladas sin interferencias. Arrástralo para girarlo y mueve el control para ver el desmontaje que calcula la app, sin que ninguna pieza atraviese otra.</p>
+    <div class="visor3d">
+      <div class="lienzo vidrio rev" id="lienzo"><div class="cargando" id="cargando">Cargando el modelo…</div><div class="nombre" id="nombrePieza"></div><div class="pista">Arrastra para girar · rueda para acercar</div></div>
+      <div class="mandos vidrio rev" style="--d:.1s">
+        <div><label>Explosión <b class="val" id="valExpl">0 %</b></label><input type="range" id="expl" min="0" max="100" value="0"></div>
+        <div><label>Vista</label><div class="fila-btn"><button data-vista="iso" class="on">Isométrica</button><button data-vista="frente">Frente</button><button data-vista="lado">Lado</button><button data-vista="arriba">Arriba</button></div></div>
+        <div><label>Movimiento</label><div class="fila-btn"><button id="giro" class="on">Giro automático</button><button id="anim">Animar desmontaje</button></div></div>
+        <p class="nota">Pasa el ratón por una pieza para ver su nombre. El modelo se simplificó para la web; en la app es exacto.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ENTORNOS -->
+<section id="entornos">
+  <div class="ancho">
+    <div class="etiqueta rev">Recorre la app</div>
+    <h2 class="grande rev">Un entorno para<br><span class="grad">cada etapa.</span></h2>
+    <p class="sub rev">Cada pestaña de CREATE es una etapa del trabajo, con sus herramientas a la vista y una ayuda «Cómo se usa». Elige uno:</p>
+    <div class="entornos rev">
+      <div class="ent-tabs fila-btn" id="entTabs"></div>
+      <div class="ent-panel vidrio" id="entPanel"><div class="ventana"><video id="entVideo" muted loop playsinline preload="none"></video></div><div class="texto"><h3 id="entTitulo"></h3><p id="entTexto"></p><div class="herr" id="entHerr"></div><div class="resuelve" id="entResuelve"></div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- RECORRIDO -->
+<section id="recorrido" class="bandas">
+  <div class="ancho">
+    <div class="etiqueta rev">Cómo se trabaja</div>
+    <h2 class="grande rev">Del boceto<br><span class="grad">a la pieza impresa.</span></h2>
+    <div class="recorrido">
+      <div class="pasos">
+        <div data-paso="0"><div class="num">01 · DIBUJA</div><h3>Con cotas y restricciones.</h3><p>Arcos tangentes y elipses exactas. Cambia una medida y el dibujo se ajusta solo.</p></div>
+        <div data-paso="1"><div class="num">02 · MODELA</div><h3>Con historial que se reproduce.</h3><p>Cada pieza se puede ver construirse paso a paso, como un tutorial.</p></div>
+        <div data-paso="2"><div class="num">03 · ENSAMBLA</div><h3>Piezas que se mueven.</h3><p>Uniones, choques comprobados y lista de materiales automática.</p></div>
+        <div data-paso="3"><div class="num">04 · DOCUMENTA</div><h3>Planos ISO desde el modelo.</h3><p>Vistas, cortes, acotación automática, globos y lista de piezas.</p></div>
+        <div data-paso="4"><div class="num">05 · IMPRIME</div><h3>Las placas, listas.</h3><p>Menos soportes o menos placas, tu cama a medida y el G-code laminado.</p></div>
+      </div>
+      <div class="pantalla vidrio ventana">
+        <div class="capa activo" data-capa="0"><video data-src="videos/E01.mp4" muted loop playsinline preload="none" poster="videos/posters/E01.jpg"></video></div>
+        <div class="capa" data-capa="1"><video data-src="videos/P17.mp4" muted loop playsinline preload="none" poster="videos/posters/P17.jpg"></video></div>
+        <div class="capa" data-capa="2"><video data-src="videos/E06.mp4" muted loop playsinline preload="none" poster="videos/posters/E06.jpg"></video></div>
+        <div class="capa" data-capa="3"><video data-src="videos/E10.mp4" muted loop playsinline preload="none" poster="videos/posters/E10.jpg"></video></div>
+        <div class="capa" data-capa="4"><video data-src="videos/E11.mp4" muted loop playsinline preload="none" poster="videos/posters/E11.jpg"></video></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- AHORRO -->
+<section id="ahorro">
+  <div class="ancho">
+    <div class="etiqueta rev">Calculadora</div>
+    <h2 class="grande rev">¿Cuánto <span class="grad-azul">ahorras?</span></h2>
+    <p class="sub rev">Mueve los controles: precios de lista para uso comercial en EE. UU. (noviembre de 2026, fuentes en la comparativa).</p>
+    <div class="ahorro">
+      <div class="mandos vidrio rev">
+        <div><label>Personas que diseñan <b class="val" id="vUsu">3</b></label><input type="range" id="usu" min="1" max="50" value="3"></div>
+        <div><label>Años <b class="val" id="vAnos">3</b></label><input type="range" id="anos" min="1" max="10" value="3"></div>
+        <p class="nota">SOLIDWORKS: suscripción Standard; Onshape: plan Standard; Shapr3D: Pro anual.</p>
+      </div>
+      <div class="barras vidrio rev" style="--d:.1s" id="barras"></div>
+    </div>
+  </div>
+</section>
+
+<!-- PERSONALIZA -->
+<section id="personaliza" class="bandas">
+  <div class="ancho">
+    <div class="etiqueta rev">Personaliza</div>
+    <h2 class="grande rev">Tu forma de trabajar.<br><span class="grad">Tu interfaz.</span></h2>
+    <p class="sub rev">Ocho estilos completos, Estudio de apariencia con perillas, tres juegos de iconos, claro u oscuro, paneles que mueves o escondes, modo táctil y una ventana de controles para la segunda pantalla o el iPad.</p>
+    <div class="perso">
+      <div class="visor vidrio rev ventana" id="visorEst">
+        <img class="activo" data-estilo="liquido" src="capturas/estilos/liquido.jpg" alt="Cristal líquido">
+        <img data-estilo="mac" src="capturas/estilos/mac.jpg" alt="Nativo" loading="lazy"><img data-estilo="cristal" src="capturas/estilos/cristal.jpg" alt="Cristal" loading="lazy">
+        <img data-estilo="grafito" src="capturas/estilos/grafito.jpg" alt="Grafito" loading="lazy"><img data-estilo="taller" src="capturas/estilos/taller.jpg" alt="Taller" loading="lazy">
+        <img data-estilo="panorama" src="capturas/estilos/panorama.jpg" alt="Panorama" loading="lazy"><img data-estilo="pro" src="capturas/estilos/pro.jpg" alt="Estudio Pro" loading="lazy">
+        <img data-estilo="instrumento" src="capturas/estilos/instrumento.jpg" alt="Instrumento" loading="lazy">
+      </div>
+      <div class="rev" style="--d:.1s">
+        <div class="estilos">
+          <button class="estilo activo" data-estilo="liquido"><b>Cristal líquido</b><span>Vidrio sobre la pieza</span></button><button class="estilo" data-estilo="mac"><b>Nativo</b><span>Como las apps del Mac</span></button>
+          <button class="estilo" data-estilo="cristal"><b>Cristal</b><span>Pantalla completa</span></button><button class="estilo" data-estilo="grafito"><b>Grafito</b><span>Mate, alto contraste</span></button>
+          <button class="estilo" data-estilo="taller"><b>Taller</b><span>Cinta con nombres</span></button><button class="estilo" data-estilo="panorama"><b>Panorama</b><span>Todo a la vista</span></button>
+          <button class="estilo" data-estilo="pro"><b>Estudio Pro</b><span>Oscuro y ordenado</span></button><button class="estilo" data-estilo="instrumento"><b>Instrumento</b><span>Negro mate</span></button>
+        </div>
+        <div class="acentos">Color de acento (prueba: cambia esta web)
+          <button class="on" style="background:#ff6a2b" data-a="#ff6a2b" data-b="#ffb36b" aria-label="Naranja"></button><button style="background:#3b82f6" data-a="#3b82f6" data-b="#93c5fd" aria-label="Azul"></button>
+          <button style="background:#10b981" data-a="#10b981" data-b="#6ee7b7" aria-label="Verde"></button><button style="background:#a855f7" data-a="#a855f7" data-b="#d8b4fe" aria-label="Violeta"></button><button style="background:#ef4444" data-a="#ef4444" data-b="#fca5a5" aria-label="Rojo"></button>
+        </div>
+      </div>
+    </div>
+    <div class="modos">
+      <div class="modo vidrio brillo rev"><video data-src="videos/C03.mp4" muted loop playsinline preload="none" poster="videos/posters/C03.jpg"></video><h3>Estudio de apariencia</h3><p>⌘, abre las perillas: vidrio, esquinas, letra, iconos y colores para daltonismo.</p></div>
+      <div class="modo vidrio brillo rev" style="--d:.08s"><video data-src="videos/C05.mp4" muted loop playsinline preload="none" poster="videos/posters/C05.jpg"></video><h3>Organiza los paneles</h3><p>Muévelos, ánclalos o escóndelos para despejar la vista.</p></div>
+      <div class="modo vidrio brillo rev" style="--d:.16s"><video data-src="videos/C06.mp4" muted loop playsinline preload="none" poster="videos/posters/C06.jpg"></video><h3>Modo táctil</h3><p>Botones grandes y ruedas de edición para iPad o pantallas táctiles.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- TUTORIALES -->
+<section id="tutoriales">
+  <div class="ancho">
+    <div class="etiqueta rev">Aprende</div>
+    <h2 class="grande rev">Tutoriales <span class="grad-azul">por nivel.</span></h2>
+    <p class="sub rev">Cada ejemplo se abre en la app y se reproduce paso a paso: la herramienta, sus valores y entonces el resultado.</p>
+    <div class="fila-btn rev" id="tutFiltro" style="margin-top:30px"><button class="on" data-n="">Todos</button><button data-n="b">Básico</button><button data-n="i">Intermedio</button><button data-n="a">Avanzado</button><button data-n="e">Ensambles</button></div>
+    <div class="tuts" id="tuts"></div>
+  </div>
+</section>
+
+<!-- VÍDEOS -->
+<section id="videos" class="bandas">
+  <div class="ancho">
+    <div class="etiqueta rev">Vídeos</div>
+    <h2 class="grande rev">Míralo funcionar.</h2>
+    <p class="sub rev">Grabados directamente en CREATE, sin montaje. Pasa el ratón para verlos en movimiento; haz clic para verlos en grande.</p>
+    <div class="fila-btn rev" id="pestanas" style="margin-top:30px"><button class="on" data-cat="">Todos</button><button data-cat="V">Entornos explicados</button><button data-cat="C">Personalización</button><button data-cat="P">Piezas paso a paso</button><button data-cat="A">Ensambles</button><button data-cat="E">Funciones</button></div>
+    <div class="galeria" id="galeria"></div>
+  </div>
+</section>
+<div class="modal" id="modal"><video controls playsinline></video></div>
+
+<!-- APÓYANOS -->
+<section id="apoyanos">
+  <div class="aurora" style="top:0;height:100%;opacity:.45"><i></i><i></i><i></i></div>
+  <div class="ancho" style="position:relative">
+    <div class="etiqueta rev">Campaña en preparación</div>
+    <h2 class="grande rev">Ayúdanos a llevarlo<br><span class="grad">más lejos.</span></h2>
+    <p class="sub rev">CREATE seguirá siendo gratis. Con la campaña de micromecenazgo financiaremos los próximos módulos: cada etapa que se alcanza se desbloquea para todos. Mueve el control para ver cómo funciona.</p>
+    <div class="escalera vidrio rev">
+      <div class="simula">Si la campaña reúne <input type="range" id="recauda" min="0" max="55000" step="500" value="5000"><b id="vRecauda">5.000 USD</b></div>
+      <div class="riel"><i id="riel"></i></div>
+      <div class="metas" id="metas"></div>
+    </div>
+    <div class="niveles">
+      <div class="nivel vidrio rev"><h3>Mecenas</h3><div class="precio">5 <small>USD</small></div><ul><li>Tu nombre en los créditos de la app</li><li>Actualizaciones de la campaña</li><li>Todos los módulos que se desbloqueen</li></ul></div>
+      <div class="nivel vidrio destacado rev" style="--d:.06s"><h3>Fundador</h3><div class="precio">29 <small>USD</small></div><ul><li>Todo lo anterior</li><li>Acceso anticipado a cada módulo nuevo</li><li>Insignia «Fundador» en la app</li><li>Canal directo con el equipo</li></ul></div>
+      <div class="nivel vidrio rev" style="--d:.12s"><h3>Maker</h3><div class="precio">79 <small>USD</small></div><ul><li>Todo lo de Fundador</li><li>Pack del avión y el helicóptero RC: modelos, planos y placas laminadas</li><li>Curso de los tutoriales avanzados</li></ul></div>
+      <div class="nivel vidrio rev" style="--d:.18s"><h3>Escuela o taller</h3><div class="precio">490 <small>USD</small></div><ul><li>Todo lo de Maker para 25 personas</li><li>Material para clase por niveles</li><li>Una sesión de formación en línea</li></ul></div>
+    </div>
+    <div class="aviso vidrio rev"><strong>Propuesta, a confirmar.</strong> Las metas, los módulos y las recompensas pueden cambiar antes del lanzamiento. Solo prometeremos lo que podamos entregar, con fechas realistas y actualizaciones honestas durante el desarrollo.</div>
+    <div class="hoja">
+      <div class="hito vidrio hecho rev"><small>Hecho · 1.0</small><h4>CAD completo para Mac</h4><p>Bocetos, sólido, superficies, chapa, ensambles, planos, laminado y desmontaje.</p></div>
+      <div class="hito vidrio rev" style="--d:.06s"><small>Siguiente</small><h4>Firma de Apple y 1.1</h4><p>Sin el aviso de seguridad al abrir, y mejoras de los ensambles.</p></div>
+      <div class="hito vidrio rev" style="--d:.12s"><small>Con la campaña</small><h4>Simulación y fabricación</h4><p>Tensiones y deformaciones; G-code para CNC y láser.</p></div>
+      <div class="hito vidrio rev" style="--d:.18s"><small>Después</small><h4>Windows e iPad</h4><p>Las mismas herramientas en más dispositivos.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- COMPARATIVA -->
+<section id="comparativa" class="bandas">
+  <div class="ancho">
+    <div class="etiqueta rev">Comparativa</div>
+    <h2 class="rev" style="font-size:clamp(36px,5vw,60px);line-height:1.04">CREATE frente a los programas<br>que ya conoces.</h2>
+    <p class="sub rev">Precios de lista para un usuario comercial en EE. UU., consultados en noviembre de 2026. Pueden variar por país y promociones.</p>
+    <div class="tabla-wrap vidrio rev">
+      <table class="comp">
+        <thead><tr><th></th><th class="nos">CREATE</th><th>Autodesk Fusion</th><th>SOLIDWORKS</th><th>Onshape</th><th>Shapr3D</th><th>Plasticity</th><th>FreeCAD</th></tr></thead>
+        <tbody>
+          <tr><td>Precio</td><td class="nos"><b>Gratis</b></td><td>680 $/año<sup>1</sup></td><td>desde ~2.800 $/año<sup>2</sup></td><td>1.500–2.500 $/año<sup>3</sup></td><td>~299 $/año<sup>4</sup></td><td>175–299 $ una vez<sup>5</sup></td><td>Gratis</td></tr>
+          <tr><td>App nativa para Mac</td><td class="nos si">Sí</td><td class="si">Sí</td><td class="no">No<small>solo Windows</small></td><td class="parcial">Navegador</td><td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td></tr>
+          <tr><td>Funciona sin internet</td><td class="nos si">Siempre</td><td class="parcial">Limitado<small>modo sin conexión</small></td><td class="si">Sí</td><td class="no">No</td><td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td></tr>
+          <tr><td>Archivos en tu equipo</td><td class="nos si">Sí</td><td class="parcial">Nube por defecto</td><td class="si">Sí</td><td class="no">Solo nube</td><td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td></tr>
+          <tr><td>Sin cuenta</td><td class="nos si">Sí</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="parcial">Licencia</td><td class="si">Sí</td></tr>
+          <tr><td>Historial paramétrico</td><td class="nos si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="parcial">Limitado</td><td class="si">Sí</td></tr>
+          <tr><td>Ensambles con uniones móviles</td><td class="nos si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="parcial">Básico</td><td class="no">No</td><td class="si">Sí</td></tr>
+          <tr><td>Planos 2D con cajetín</td><td class="nos si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="no">No</td><td class="si">Sí</td></tr>
+          <tr><td>Desmontaje automático por subsistemas, sin choques</td><td class="nos si">Sí</td><td class="parcial">Explosión automática</td><td class="parcial">Explosión automática</td><td class="parcial">Manual</td><td class="no">No</td><td class="no">No</td><td class="parcial">Manual</td></tr>
+          <tr><td>Placas de impresión 3D (menos soportes / menos placas)</td><td class="nos si">Sí</td><td class="parcial">Preparación aditiva</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr><td>Construcción reproducida paso a paso</td><td class="nos si">Cualquier pieza</td><td class="no">No</td><td class="no">No</td><td class="parcial">Historial</td><td class="parcial">Historial</td><td class="no">No</td><td class="no">No</td></tr>
+          <tr><td>Interfaz personalizable</td><td class="nos si">8 estilos</td><td class="parcial">Claro/oscuro</td><td class="parcial">Temas</td><td class="parcial">Claro/oscuro</td><td class="parcial">Claro/oscuro</td><td class="parcial">Temas</td><td class="si">Hojas de estilo</td></tr>
+          <tr><td>Exporta STEP, STL, OBJ, PDF, DXF</td><td class="nos si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="si">Sí</td><td class="parcial">Sin planos</td><td class="si">Sí</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ol class="notas">
+      <li>Autodesk, preguntas frecuentes de la suscripción a Fusion: 85 $/mes, 680 $/año o 2.040 $ por 3 años. <a href="https://www.autodesk.com/solutions/autodesk-fusion-subscription-faq">autodesk.com</a></li>
+      <li>SOLIDWORKS Standard en suscripción, lista 2026 de un distribuidor; el precio final lo da cada distribuidor. <a href="https://ohmycad.com/en/official-price-list-3dexperience-solidworks/">ohmycad.com</a></li>
+      <li>Onshape Standard 1.500 $ y Professional 2.500 $ por usuario y año; hay un plan gratuito con documentos públicos. <a href="https://toolradar.com/tools/onshape/pricing">toolradar.com</a></li>
+      <li>Shapr3D Pro, facturación anual (las fuentes varían entre 25 €/mes y 299 $/año). <a href="https://www.g2.com/products/shapr3d">g2.com</a></li>
+      <li>Plasticity Indie 175 $ o Studio 299 $, pago único con 12 meses de actualizaciones. <a href="https://www.softwares.com/software/plasticity-3d/pricing">softwares.com</a></li>
+    </ol>
+    <div class="aviso vidrio rev"><strong>Con franqueza:</strong> SOLIDWORKS, Fusion y Onshape llevan años en fábricas y ofrecen simulación avanzada, gestión de datos para equipos grandes, CAM y soporte comercial. CREATE es nuevo y está pensado para quien diseña y fabrica por su cuenta o en equipos pequeños.</div>
+  </div>
+</section>
+
+<!-- DESCARGA -->
+<section id="descargar" class="descarga">
+  <div class="aurora" style="top:10%;height:90%;opacity:.6"><i></i><i></i><i></i></div>
+  <div class="ancho" style="position:relative">
+    <div class="caja vidrio rev">
+      <img class="logo" src="logo-create.svg" alt="">
+      <h2>Descarga <span class="grad">CREATE</span></h2>
+      <p>Gratis. Incluye todo lo necesario para funcionar: no hay que instalar nada más.</p>
+      <a class="boton grande" href="descargas/CREATE-1.0.0.dmg" download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 20h16"/></svg>Descargar para Mac (39 MB)</a>
+      <div class="otros">¿Prefieres un ZIP? <a href="descargas/CREATE-1.0.0.zip" download>Descargar CREATE-1.0.0.zip</a></div>
+      <dl><dt>Versión</dt><dd>1.0.0 · 15 de noviembre de 2026</dd><dt>Requisitos</dt><dd>Mac con Apple Silicon (M1 o posterior) · macOS 13 Ventura o posterior</dd><dt>SHA-256</dt><dd><code>eb1a0a6fe0c2eda90ed18db113022736e850b9d8c76361ef5270fe014694dd28</code></dd></dl>
+    </div>
+  </div>
+</section>
+<section id="instalar" style="padding-top:30px">
+  <div class="ancho">
+    <div class="etiqueta rev">Instalación</div>
+    <h2 class="rev" style="font-size:clamp(36px,5vw,56px)">Tres pasos.</h2>
+    <div class="pasos3">
+      <div class="vidrio rev"><h3>Abre el archivo descargado</h3><p>Doble clic en el <code>.dmg</code> de tu carpeta Descargas.</p></div>
+      <div class="vidrio rev" style="--d:.08s"><h3>Arrastra CREATE a Aplicaciones</h3><p>Lleva el icono a la carpeta Aplicaciones.</p></div>
+      <div class="vidrio rev" style="--d:.16s"><h3>Ábrela y autorízala</h3><p>Si macOS avisa: <b>Ajustes del Sistema › Privacidad y seguridad</b> › «Abrir igualmente». Solo la primera vez.</p></div>
+    </div>
+    <div class="aviso vidrio rev"><strong>¿Por qué aparece ese aviso?</strong> macOS lo muestra con cualquier app descargada que no esté certificada por Apple. Comprueba tu descarga con su SHA-256: en Terminal, <code>shasum -a 256 ~/Downloads/CREATE-1.0.0.dmg</code>.</div>
+  </div>
+</section>
+<section id="preguntas" style="padding-top:30px">
+  <div class="ancho">
+    <div class="etiqueta rev">Preguntas frecuentes</div>
+    <h2 class="rev" style="font-size:clamp(36px,5vw,56px)">Antes de descargar.</h2>
+    <div style="margin-top:28px">
+      <details><summary>¿Necesito conexión a internet?</summary><p>No para modelar: el motor geométrico viene dentro de la app. La conexión solo se usa para funciones opcionales.</p></details>
+      <details><summary>¿Dónde se guardan mis diseños?</summary><p>En tu Mac, en <strong>Documentos/FORMS Proyectos</strong>. CREATE no sube tus archivos a ningún servidor.</p></details>
+      <details><summary>¿Qué formatos abre y exporta?</summary><p>Exporta STL, STEP, OBJ y GLB, y planos en PDF, SVG, DXF y PNG. Importa STL y OBJ; para STEP usa FreeCAD si lo tienes instalado.</p></details>
+      <details><summary>¿Seguirá siendo gratis si hay campaña?</summary><p>Sí. La campaña financia módulos nuevos que se desbloquean para todos; los mecenas reciben acceso anticipado y extras.</p></details>
+      <details><summary>¿Funciona en Windows o en Mac con Intel?</summary><p>Esta versión es solo para Mac con Apple Silicon. Windows está en la hoja de ruta.</p></details>
+      <details><summary>¿Puedo cambiar el aspecto de la app?</summary><p>Sí: ocho estilos, Estudio de apariencia (⌘,), tres juegos de iconos, claro u oscuro, modo Organizar y modo táctil.</p></details>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer><div class="ancho"><a class="marca" href="#">CREATE</a><p>© 2026 Alberto. Todos los derechos reservados. CREATE incluye componentes de terceros (three.js, replicad, OpenCascade, Python) con sus licencias; detalle en <a href="AVISOS_TERCEROS.txt">Avisos de terceros</a>. Uso sujeto a la <a href="LICENCIA.txt">licencia</a>. Los renders se hicieron en Blender con la geometría de CREATE. Los modelos generados son orientativos: compruébalos antes de fabricar.</p></div></footer>
+
+<script>
+(() => {
+  const quieto = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const $ = (s) => document.querySelector(s), $$ = (s) => [...document.querySelectorAll(s)];
+  const rango = (el) => el.style.setProperty("--p", `${((el.value - el.min) / (el.max - el.min)) * 100}%`);
+  // Aparición, barra de progreso y sección activa en el menú
+  const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { threshold: 0.12 });
+  $$(".rev").forEach((el) => io.observe(el));
+  const secciones = $$("main section[id]"), enlaces = $$("#nav a[href^='#']");
+  addEventListener("scroll", () => {
+    $("#progreso").style.width = `${(scrollY / (document.documentElement.scrollHeight - innerHeight)) * 100}%`;
+    const act = secciones.filter((s) => s.getBoundingClientRect().top < innerHeight * 0.4).pop();
+    enlaces.forEach((a) => a.classList.toggle("activo", act && a.getAttribute("href") === `#${act.id}`));
+    if (!quieto) { const r = $("#escena").getBoundingClientRect(), k = Math.max(0, Math.min(1, 1 - r.top / innerHeight)); $("#escena").style.setProperty("--rx", `${14 - 14 * k}deg`); $("#escena").style.setProperty("--sc", `${0.92 + 0.08 * k}`); }
+  }, { passive: true });
+  // Cifras que cuentan
+  const cuenta = new IntersectionObserver((es) => es.forEach((e) => { if (!e.isIntersecting) return; cuenta.unobserve(e.target); const fin = +e.target.dataset.cuenta, t0 = performance.now(); const paso = (t) => { const k = Math.min(1, (t - t0) / 1400); e.target.textContent = Math.round(fin * (1 - (1 - k) ** 3)); if (k < 1) requestAnimationFrame(paso); }; quieto ? (e.target.textContent = fin) : requestAnimationFrame(paso); }), { threshold: 0.6 });
+  $$("[data-cuenta]").forEach((el) => cuenta.observe(el));
+  // Vídeos perezosos
+  const vio = new IntersectionObserver((es) => es.forEach((e) => { const v = e.target; if (e.isIntersecting) { if (!v.src && v.dataset.src) v.src = v.dataset.src; v.play?.().catch(() => {}); } else v.pause?.(); }), { threshold: 0.35 });
+  $$(".modo video").forEach((v) => vio.observe(v));
+  // Recorrido fijo
+  const pasos = $$("[data-paso]"), capas = $$("[data-capa]");
+  const pio = new IntersectionObserver((es) => es.forEach((e) => { if (!e.isIntersecting) return; const k = e.target.dataset.paso; pasos.forEach((p) => p.classList.toggle("activo", p === e.target)); capas.forEach((c) => { const on = c.dataset.capa === k, v = c.querySelector("video"); c.classList.toggle("activo", on); if (on) { if (!v.src) v.src = v.dataset.src; v.play().catch(() => {}); } else v.pause(); }); }), { rootMargin: "-45% 0px -45% 0px" });
+  pasos.forEach((p) => pio.observe(p));
+
+  // Entornos
+  const ENT = [
+    ["Bocetos", "V01", "Dibujos planos con medidas exactas que luego se convierten en piezas 3D.", ["Línea", "Rectángulo", "Círculo", "Arco tangente", "Elipse", "Spline", "Acotar", "Restringir", "Recortar", "Redondear"], "Resuelve: perfiles exactos que se ajustan solos al cambiar una medida."],
+    ["Piezas (Sólido)", "V02", "Piezas con volumen y un historial editable que se puede reproducir paso a paso.", ["Extruir", "Revolución", "Solevación", "Barrido", "Agujero acotado", "Redondeo", "Chaflán", "Patrón", "Reflejo", "Vaciado"], "Resuelve: de una idea a una pieza fabricable, sin perder cómo se hizo."],
+    ["Ensamble", "V03", "Piezas que se unen y se mueven como en la realidad, con choques comprobados.", ["Añadir pieza", "STEP de fabricantes", "Uniones", "Relaciones de movimiento", "Interferencias", "Corregir choques", "Animar", "Lista de materiales"], "Resuelve: saber que todo encaja antes de fabricar."],
+    ["Explosión", "E09", "Desmontaje automático por subsistemas: tapas primero, ejes a lo largo de sí mismos, sin cruces.", ["Planificar desmontaje", "Pasos automáticos", "Paso manual", "Tomas de cámara", "Vídeo / GIF"], "Resuelve: manuales de montaje y vídeos sin animarlos a mano."],
+    ["Planos", "E10", "Hojas ISO generadas desde el modelo, con vistas, cortes y lista de piezas.", ["Vistas estándar", "Cortes", "Isométrica", "Explosionada", "Acotación automática", "Globos", "PDF · SVG · DXF"], "Resuelve: la documentación de fabricación en minutos."],
+    ["Laminar", "E11", "Solo las piezas que se imprimen, bien apoyadas, en las placas de tu impresora.", ["Menos soportes", "Menos placas", "Cama personalizada", "Unir en bloque", "Laminar G-code", "Abrir en PrusaSlicer"], "Resuelve: de la pieza al G-code sin pelear con el laminador."],
+  ];
+  const pintaEnt = (k) => { const [t, v, txt, herr, res] = ENT[k]; $$("#entTabs button").forEach((b, i) => b.classList.toggle("on", i === k)); $("#entTitulo").textContent = t; $("#entTexto").textContent = txt; $("#entHerr").innerHTML = herr.map((h) => `<span>${h}</span>`).join(""); $("#entResuelve").textContent = res; const vd = $("#entVideo"); vd.poster = `videos/posters/${v}.jpg`; vd.src = `videos/${v}.mp4`; vd.play().catch(() => {}); };
+  $("#entTabs").innerHTML = ENT.map(([t]) => `<button>${t}</button>`).join("");
+  $$("#entTabs button").forEach((b, i) => b.addEventListener("click", () => pintaEnt(i)));
+  new IntersectionObserver((es, o) => { if (es[0].isIntersecting) { pintaEnt(0); o.disconnect(); } }, { threshold: 0.2 }).observe($("#entPanel"));
+
+  // Calculadora de ahorro
+  const PRECIOS = [["SOLIDWORKS", 2820], ["Onshape", 1500], ["Autodesk Fusion", 680], ["Shapr3D", 299], ["CREATE", 0]];
+  const fmt = (n) => `${Math.round(n).toLocaleString("es-ES")} $`;
+  const calc = () => { const u = +$("#usu").value, a = +$("#anos").value; $("#vUsu").textContent = u; $("#vAnos").textContent = a; rango($("#usu")); rango($("#anos")); const max = PRECIOS[0][1] * u * a || 1;
+    $("#barras").innerHTML = PRECIOS.map(([n, p]) => `<div class="barra-p ${p ? "" : "nos"}"><span>${n}</span><div class="pista-b"><i style="width:${p ? (p * u * a / max) * 100 : 1.5}%"></i></div><b>${fmt(p * u * a)}</b></div>`).join("") + `<div class="total-ahorro">Frente a Fusion ahorras<b>${fmt(680 * u * a)}</b>y frente a SOLIDWORKS, ${fmt(2820 * u * a)}.</div>`; };
+  $("#usu").addEventListener("input", calc); $("#anos").addEventListener("input", calc); calc();
+
+  // Estilos y color de acento
+  $$(".estilo").forEach((b) => b.addEventListener("click", () => { $$(".estilo").forEach((x) => x.classList.toggle("activo", x === b)); $$("#visorEst img").forEach((im) => im.classList.toggle("activo", im.dataset.estilo === b.dataset.estilo)); }));
+  $$(".acentos button").forEach((b) => b.addEventListener("click", () => { $$(".acentos button").forEach((x) => x.classList.toggle("on", x === b)); document.documentElement.style.setProperty("--acento", b.dataset.a); document.documentElement.style.setProperty("--acento-2", b.dataset.b); $$("input[type=range]").forEach(rango); }));
+
+  // Tutoriales
+  const TUT = [["biela", "b", "Biela", "Arcos tangentes"], ["mensula", "b", "Ménsula de chapa", "Bridas y desarrollo"], ["cuenco", "b", "Cuenco", "Superficie que se engrosa"], ["taza", "b", "Taza", "Vaciado y asa"], ["resorte", "b", "Resorte con tapas", "Bobina"], ["elipse", "b", "Tapa elíptica", "Elipse exacta"], ["llanta", "b", "Llanta", "Revolución y patrón"],
+    ["brida", "i", "Brida", "Patrón circular"], ["caja", "i", "Caja con encajes", "Encaje elástico"], ["jarron", "i", "Jarrón", "Solevación"], ["disipador", "i", "Disipador", "Patrón rectangular"], ["engranaje", "i", "Engranaje", "Dientes en patrón"], ["soporte", "i", "Soporte de rodamiento", "Unir y cortar"], ["placa", "i", "Placa atornillada", "Tornillería"],
+    ["bloque", "a", "Bloque hidráulico", "Conductos que se cruzan"], ["horquilla", "a", "Horquilla de cilindro", "Solevación y reflejo"], ["nema17", "a", "Soporte NEMA 17", "17 pasos"], ["reductor", "a", "Carcasa de reductor", "26 operaciones"], ["polea", "e", "Polea con soporte", "Unión de rotación"]];
+  const NV = { b: "Básico", i: "Intermedio", a: "Avanzado", e: "Ensamble" };
+  $("#tuts").innerHTML = TUT.map(([id, n, t, s]) => `<div class="tut vidrio rev" data-n="${n}"><img src="capturas/ejemplos/${id}-o.webp" alt="${t}" loading="lazy"><span class="nv ${n}">${NV[n]}</span><b>${t}</b><small>${s}</small></div>`).join("");
+  $$("#tuts .rev").forEach((el) => io.observe(el));
+  $("#tutFiltro").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; $$("#tutFiltro button").forEach((x) => x.classList.toggle("on", x === b)); $$("#tuts .tut").forEach((t) => { t.hidden = !!b.dataset.n && t.dataset.n !== b.dataset.n; }); });
+
+  // Vídeos
+  const VIDEOS = [
+    ["V01", "Entorno Bocetos", "Sus herramientas, explicadas"], ["V02", "Entorno Piezas", "Del perfil al sólido"], ["V03", "Entorno Ensamble", "Uniones, choques y desmontaje"],
+    ["C01", "Estilos", "Ocho estilos completos"], ["C02", "Claro, oscuro y acento", "Colores a tu gusto"], ["C03", "Estudio de apariencia", "Perillas en vivo"], ["C04", "Iconos y densidad", "Tres juegos de iconos"], ["C05", "Organizar paneles", "Despeja la vista"], ["C06", "Modo táctil", "Ruedas de edición"], ["C07", "Escena 3D", "Luz, aristas y cámara"],
+    ["P01", "Biela", "Básico"], ["P02", "Ménsula de chapa", "Básico"], ["P03", "Cuenco", "Básico"], ["P04", "Taza", "Básico"], ["P05", "Resorte", "Básico"], ["P06", "Tapa elíptica", "Básico"], ["P07", "Llanta", "Básico"], ["P08", "Brida", "Intermedio"], ["P09", "Caja con encajes", "Intermedio"], ["P10", "Jarrón", "Intermedio"], ["P11", "Disipador", "Intermedio"], ["P12", "Engranaje", "Intermedio"], ["P13", "Soporte de rodamiento", "Intermedio"], ["P14", "Placa atornillada", "Intermedio"], ["P15", "Bloque hidráulico", "Avanzado"], ["P16", "Horquilla", "Avanzado"], ["P17", "Soporte NEMA 17", "Avanzado"], ["P18", "Carcasa de reductor", "Avanzado"],
+    ["A01", "Avión entrenador RC", "Desmontaje completo"], ["A02", "Helicóptero RC 450", "Desmontaje completo"],
+    ["E06", "Ensamble y desmontaje", "El eje sale primero"], ["E07", "Materiales por condiciones", "Recomienda y aplica"], ["E09", "Desmontaje por subsistemas", "Sin choques"], ["E10", "Planos", "Acotación y lista de piezas"], ["E11", "Laminar", "Todas las piezas, laminadas"],
+  ];
+  const gal = $("#galeria");
+  gal.innerHTML = VIDEOS.map(([c, t, d]) => `<div class="vid vidrio" data-cat="${c[0]}" data-v="${c}"><div class="caja"><img src="videos/posters/${c}.jpg" alt="" loading="lazy" onerror="this.remove()"><span class="pronto">Próximamente</span><div class="play"><i></i></div></div><h4>${t}</h4><p>${d}</p></div>`).join("");
+  gal.querySelectorAll(".vid").forEach((el) => {
+    const caja = el.querySelector(".caja"), img = caja.querySelector("img"); if (img) img.addEventListener("load", () => caja.querySelector(".pronto")?.remove());
+    let v = null;
+    el.addEventListener("mouseenter", () => { if (quieto) return; if (!v) { v = document.createElement("video"); v.muted = true; v.loop = true; v.playsInline = true; v.src = `videos/${el.dataset.v}.mp4`; v.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover"; v.onerror = () => { v.remove(); v = null; }; caja.prepend(v); } v.play().catch(() => {}); el.classList.add("reproduce"); });
+    el.addEventListener("mouseleave", () => { v?.pause(); el.classList.remove("reproduce"); });
+    el.addEventListener("click", () => { const m = $("#modal"), mv = m.querySelector("video"); mv.src = `videos/${el.dataset.v}.mp4`; m.classList.add("abierto"); mv.play().catch(() => {}); });
+  });
+  $("#modal").addEventListener("click", (e) => { if (e.target.tagName !== "VIDEO") { e.currentTarget.classList.remove("abierto"); e.currentTarget.querySelector("video").pause(); } });
+  $("#pestanas").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; $$("#pestanas button").forEach((x) => x.classList.toggle("on", x === b)); gal.querySelectorAll(".vid").forEach((v) => { v.hidden = !!b.dataset.cat && v.dataset.cat !== b.dataset.cat; }); });
+
+  // Escalera de la campaña
+  const METAS = [[3500, "Base", "3 meses de trabajo: CREATE 1.x firmada por Apple, con mejoras y soporte."], [12000, "Simulación", "Tensiones y deformaciones de piezas (FEA estático)."], [20000, "Fabricación", "G-code para CNC 2.5D y corte láser."], [35000, "Windows", "CREATE también para Windows."], [50000, "iPad", "Versión para iPad con lápiz."]];
+  $("#metas").innerHTML = METAS.map(([m, t, d]) => `<div class="meta" data-m="${m}"><small>${m.toLocaleString("es-ES")} USD</small><h4>${t}</h4><p>${d}</p></div>`).join("");
+  const escalera = () => { const r = +$("#recauda").value; rango($("#recauda")); $("#vRecauda").textContent = `${r.toLocaleString("es-ES")} USD`; $("#riel").style.width = `${Math.min(100, (r / 50000) * 100)}%`; $$(".meta").forEach((m) => m.classList.toggle("lograda", r >= +m.dataset.m)); };
+  $("#recauda").addEventListener("input", escalera); escalera();
+})();
+</script>
+<script type="module">
+  // Visor 3D: el helicóptero de CREATE (GLB simplificado) con explosión del plan sin choques.
+  import * as THREE from "three";
+  import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+  import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+  import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
+  import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+  const host = document.getElementById("lienzo");
+  let iniciado = false;
+  new IntersectionObserver((es, o) => { if (es[0].isIntersecting && !iniciado) { iniciado = true; o.disconnect(); iniciar(); } }, { rootMargin: "300px" }).observe(host);
+  async function iniciar() {
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+    host.prepend(renderer.domElement);
+    const escena = new THREE.Scene(), pmrem = new THREE.PMREMGenerator(renderer);
+    escena.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    const cam = new THREE.PerspectiveCamera(35, 1, 0.01, 50);
+    const ctrl = new OrbitControls(cam, renderer.domElement); ctrl.enableDamping = true; ctrl.autoRotate = true; ctrl.autoRotateSpeed = 0.8;
+    const luz = new THREE.DirectionalLight(0xffffff, 1.6); luz.position.set(2, 3, 4); escena.add(luz, new THREE.HemisphereLight(0xbcd2ff, 0x202020, 0.6));
+    const draco = new DRACOLoader(); draco.setDecoderPath("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/");
+    const loader = new GLTFLoader(); loader.setDRACOLoader(draco);
+    const [gltf, expl] = await Promise.all([loader.loadAsync("modelo/helicoptero.glb"), fetch("modelo/helicoptero_explosion.json").then((r) => r.json())]);
+    const modelo = gltf.scene; escena.add(modelo);
+    // Blender exporta con Y arriba: los desplazamientos de CREATE (Z arriba) se convierten igual (x, z, −y).
+    const piezas = [];
+    modelo.traverse((o) => { if (o.isMesh) { const m = /p(\d{3})/.exec(o.name) || /p(\d{3})/.exec(o.parent?.name || ""); const k = m ? +m[1] : -1; const d = expl.desplazamientos[k] || [0, 0, 0]; o.userData.base = o.position.clone(); o.userData.off = new THREE.Vector3(d[0], d[2], -d[1]); o.userData.nombre = expl.nombres[k] || ""; piezas.push(o); } });
+    const caja = new THREE.Box3().setFromObject(modelo), c = caja.getCenter(new THREE.Vector3()), R = caja.getBoundingSphere(new THREE.Sphere()).radius;
+    ctrl.target.copy(c);
+    const VISTAS = { iso: [1, 0.7, 1.2], frente: [0, 0.15, 1], lado: [1, 0.15, 0], arriba: [0.01, 1, 0.01] };
+    const vista = (k) => { const d = new THREE.Vector3(...VISTAS[k]).normalize(); cam.position.copy(c).addScaledVector(d, R * 2.6); cam.lookAt(c); ctrl.update(); };
+    vista("iso");
+    document.getElementById("cargando").remove();
+    let f = 0, objetivo = 0, animando = false;
+    const slider = document.getElementById("expl");
+    const pon = (v) => { objetivo = v; slider.value = Math.round(v * 100); document.getElementById("valExpl").textContent = `${Math.round(v * 100)} %`; slider.style.setProperty("--p", `${v * 100}%`); };
+    slider.addEventListener("input", () => { animando = false; document.getElementById("anim").classList.remove("on"); pon(slider.value / 100); });
+    document.querySelectorAll("[data-vista]").forEach((b) => b.addEventListener("click", () => { document.querySelectorAll("[data-vista]").forEach((x) => x.classList.toggle("on", x === b)); vista(b.dataset.vista); }));
+    const bGiro = document.getElementById("giro"); bGiro.addEventListener("click", () => { ctrl.autoRotate = !ctrl.autoRotate; bGiro.classList.toggle("on", ctrl.autoRotate); });
+    const bAnim = document.getElementById("anim"); bAnim.addEventListener("click", () => { animando = !animando; bAnim.classList.toggle("on", animando); });
+    // Nombre de la pieza bajo el ratón
+    const ray = new THREE.Raycaster(), ptr = new THREE.Vector2(), etiqueta = document.getElementById("nombrePieza");
+    renderer.domElement.addEventListener("pointermove", (e) => { const r = renderer.domElement.getBoundingClientRect(); ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(ptr, cam); const h = ray.intersectObjects(piezas, false)[0]; etiqueta.textContent = h?.object.userData.nombre || ""; etiqueta.style.opacity = h ? 1 : 0; });
+    const tam = () => { const w = host.clientWidth, h = host.clientHeight; renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); };
+    addEventListener("resize", tam); tam();
+    let t0 = performance.now();
+    renderer.setAnimationLoop((t) => {
+      if (animando) pon(0.5 - 0.5 * Math.cos(((t - t0) / 6000) * Math.PI * 2));
+      f += (objetivo - f) * 0.12;
+      for (const o of piezas) o.position.copy(o.userData.base).addScaledVector(o.userData.off, f);
+      ctrl.update(); renderer.render(escena, cam);
+    });
+  }
+</script>
+</body>
+</html>
